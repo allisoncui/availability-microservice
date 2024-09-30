@@ -2,17 +2,6 @@ import requests
 import time
 from datetime import datetime
 
-# List of restaurants to monitor
-RESTAURANTS = [
-    {'id': 1543, 'name': 'Jeju Noodle Bar', 'city': 'ny', 'urlName': 'jeju-noodle-bar'},
-    {'id': 65452, 'name': 'Tatiana', 'city': 'new-york-ny', 'urlName': 'tatiana'}
-]
-
-# Reservation details
-PARTY_SIZE = 6
-START_DATE = '2024-09-01'
-END_DATE = '2025-09-01'
-
 # API key
 API_KEY = 'VbWk7s3L4KiK5fzlO7JD3Q5EYolJI7n5'
 auth = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9'
@@ -103,12 +92,13 @@ def parse_and_display_availabilities(venue_id, calendar_data, party_sizes):
                         reservation_time = datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S')
                         formatted_time = reservation_time.strftime('%I:%M %p')
                         print(formatted_time)
+                time.sleep(1)
             else:
                 print(f"Failed to retrieve available times for {day} and party size {num_seats}.")
 
 def main():
     # Venue and reservation details
-    venue_id = 65452
+    venue_id = 63514
     party_sizes = [2, 3, 4]
     start_date = '2024-09-30'
     end_date = '2024-10-31'
@@ -122,7 +112,7 @@ def main():
             parse_and_display_availabilities(venue_id, calendar_data, [num_seats])
         else:
             print(f"Failed to retrieve calendar data for party size {num_seats}.")
-        time.sleep(3)
+        time.sleep(2)
 
 if __name__ == '__main__':
     main()
