@@ -13,7 +13,7 @@ PARTY_SIZE = 6
 START_DATE = '2024-09-01'
 END_DATE = '2025-09-01'
 
-# API key and Discord webhook URL
+# API key
 API_KEY = 'VbWk7s3L4KiK5fzlO7JD3Q5EYolJI7n5'
 auth = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9'
 def make_get_request(url, params):
@@ -108,10 +108,10 @@ def parse_and_display_availabilities(venue_id, calendar_data, party_sizes):
 
 def main():
     # Venue and reservation details
-    venue_id = 65452  # Replace with your venue ID
-    party_sizes = [2, 3, 4]  # Party sizes to check
+    venue_id = 65452
+    party_sizes = [2, 3, 4]
     start_date = '2024-09-30'
-    end_date = '2024-10-31'  # Shortened date range for example
+    end_date = '2024-10-31'
 
     for num_seats in party_sizes:
         # Fetch calendar data for each party size
@@ -122,6 +122,7 @@ def main():
             parse_and_display_availabilities(venue_id, calendar_data, [num_seats])
         else:
             print(f"Failed to retrieve calendar data for party size {num_seats}.")
+        time.sleep(3)
 
 if __name__ == '__main__':
     main()

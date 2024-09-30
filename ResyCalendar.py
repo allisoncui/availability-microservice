@@ -1,7 +1,6 @@
 import requests
 from datetime import datetime
 
-# Replace with your actual Resy API key
 API_KEY = 'VbWk7s3L4KiK5fzlO7JD3Q5EYolJI7n5'
 
 def make_get_request(url, params):
