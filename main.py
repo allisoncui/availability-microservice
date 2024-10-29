@@ -1,9 +1,16 @@
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Response, status, Request
 import mysql.connector
 import requests
 from datetime import datetime, timedelta
 
+app = FastAPI()
+
 # API key
 API_KEY = 'VbWk7s3L4KiK5fzlO7JD3Q5EYolJI7n5'
+
+# In-memory store for results and status tracking
+availability_results = {}
+task_status = {}
 
 # Connect to the MySQL database
 def connect_to_database():
@@ -80,59 +87,88 @@ def check_availability(cursor, username):
     user_id = get_user_id(cursor, username)
     if not user_id:
         print(f"No user found with username {username}")
-        return
+        return {"error": "No user found"}
 
     viewed_restaurants = get_viewed_restaurants(cursor, user_id)
     if not viewed_restaurants:
         print(f"No viewed restaurants found for user {username}")
-        return
+        return {"error": "No viewed restaurants found"}
 
+    results = {}
     # For each viewed restaurant, check availability using the API
     for restaurant_code, restaurant_name in viewed_restaurants:
-        print(f"\nChecking availability for {restaurant_name}...")
-
-        # Fetch available days first
         available_days_data = fetch_available_days(restaurant_code, 2)
         if available_days_data and 'scheduled' in available_days_data:
-            available_days = [day['date'] for day in available_days_data['scheduled'] if day['inventory']['reservation'] == 'available']
-            if available_days:
-                for day in available_days:
-                    available_slots = fetch_available_times(restaurant_code, 2, day)
-                    if available_slots and 'results' in available_slots:
-                        venues = available_slots['results'].get('venues', [])
-                        if venues:
-                            for venue in venues:
-                                slots = venue.get('slots', [])
-                                if slots:
-                                    print(f"Available times for {restaurant_name} on {day}:")
-                                    for slot in slots:
-                                        start_time = slot.get('date', {}).get('start')
-                                        if start_time:
-                                            reservation_time = datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S')
-                                            formatted_time = reservation_time.strftime('%I:%M %p')
-                                            print(f"  - {formatted_time}")
-                                else:
-                                    print(f"No available slots for {restaurant_name} on {day}")
-                        else:
-                            print(f"No venues found for {restaurant_name} on {day}")
-                    else:
-                        print(f"No available slots for {restaurant_name} on {day}")
-            else:
-                print(f"No available days for {restaurant_name}")
+            available_days = [
+                day['date'] for day in available_days_data['scheduled']
+                if day['inventory']['reservation'] == 'available'
+            ]
+            daily_availability = []
+            for day in available_days:
+                available_slots = fetch_available_times(restaurant_code, 2, day)
+                if available_slots and 'results' in available_slots:
+                    venues = available_slots['results'].get('venues', [])
+                    for venue in venues:
+                        slots = venue.get('slots', [])
+                        daily_availability.extend(
+                            slot.get('date', {}).get('start') for slot in slots if slot.get('date', {}).get('start')
+                        )
+            results[restaurant_name] = daily_availability if daily_availability else "No availability"
         else:
-            print(f"No available days for {restaurant_name}")
+            results[restaurant_name] = "No available days"
 
-# Main function to set up the database and launch the availability checker
-def main():
+    return results
+
+# Background task for checking availability
+def check_availability_task(username, request_id, callback_url=None):
     conn = connect_to_database()
     cursor = conn.cursor()
+    
+    # Run the availability check and store results
+    results = check_availability(cursor, username)
+    availability_results[request_id] = results
+    task_status[request_id] = "complete"
 
-    # Prompt user for username
-    username = input("Enter your username: ")
-    check_availability(cursor, username)
+    # If a callback URL is provided, post the result to it
+    if callback_url:
+        try:
+            response = requests.post(callback_url, json={"status": "complete", "data": results})
+            response.raise_for_status()
+            print(f"Callback to {callback_url} successful.")
+        except requests.exceptions.RequestException as e:
+            print(f"Failed to send callback: {e}")
 
     cursor.close()
     conn.close()
 
-if __name__ == "__main__":
-    main()
+# Endpoint to initiate availability check with optional callback
+@app.post("/availability/{username}", status_code=status.HTTP_202_ACCEPTED)
+async def initiate_availability_check(username: str, request: Request, background_tasks: BackgroundTasks):
+    payload = await request.json()
+    callback_url = payload.get("callback_url")
+
+    # Generate a unique request ID
+    request_id = f"{username}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    
+    # Start the background task
+    background_tasks.add_task(check_availability_task, username, request_id, callback_url)
+    task_status[request_id] = "processing"
+
+    # Return 202 Accepted with a link to check the status
+    return Response(
+        content=f"Request accepted. Check status at /availability/status/{request_id}",
+        headers={"Location": f"/availability/status/{request_id}"},
+        status_code=status.HTTP_202_ACCEPTED
+    )
+
+# Endpoint to check status (polling)
+@app.get("/availability/status/{request_id}")
+async def check_status(request_id: str):
+    if request_id in task_status:
+        status = task_status[request_id]
+        if status == "complete":
+            return {"status": "complete", "data": availability_results[request_id]}
+        else:
+            return {"status": "processing", "data": None}
+    else:
+        raise HTTPException(status_code=404, detail="Request ID not found")
