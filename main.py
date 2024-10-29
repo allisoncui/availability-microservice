@@ -1,17 +1,25 @@
+import os
+from dotenv import load_dotenv
 import mysql.connector
 import requests
 from datetime import datetime, timedelta
 
-# API key
-API_KEY = 'VbWk7s3L4KiK5fzlO7JD3Q5EYolJI7n5'
+load_dotenv()
+
+API_KEY = os.getenv('API_KEY')
+DB_HOST = os.getenv('DB_HOST')
+DB_USER = os.getenv('DB_USER')
+DB_PASSWORD = os.getenv('DB_PASSWORD')
+DB_NAME = os.getenv('DB_NAME')
+DB_PORT = int(os.getenv('DB_PORT', 3306))
 
 # Connect to the MySQL database
 def connect_to_database():
     return mysql.connector.connect(
-        host="availability-database.cb821k94flru.us-east-1.rds.amazonaws.com",
-        user="root",
-        password="dbuserdbuser",
-        database="availability"
+         host=DB_HOST,
+        user=DB_USER,
+        password=DB_PASSWORD,
+        database=DB_NAME,
     )
 
 # Function to search for the username in the Profile table and retrieve the user_id
