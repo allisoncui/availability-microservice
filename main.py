@@ -1,10 +1,7 @@
 from fastapi import FastAPI, BackgroundTasks, HTTPException, Response, status, Request
-<<<<<<< HEAD
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from dotenv import load_dotenv
-=======
->>>>>>> 8e605b250f40d158bcaa24665b8140cc4910bd69
 import mysql.connector
 import requests
 from datetime import datetime, timedelta
@@ -27,7 +24,6 @@ RESTAURANT_MICROSERVICE_URL = "http://34.207.95.163:8000"
 
 # API key
 API_KEY = 'VbWk7s3L4KiK5fzlO7JD3Q5EYolJI7n5'
-<<<<<<< HEAD
 load_dotenv()
 
 API_KEY = os.getenv('API_KEY')
@@ -36,8 +32,6 @@ DB_USER = os.getenv('DB_USER')
 DB_PASSWORD = os.getenv('DB_PASSWORD')
 DB_NAME = os.getenv('DB_NAME')
 DB_PORT = int(os.getenv('DB_PORT', 3306))
-=======
->>>>>>> 8e605b250f40d158bcaa24665b8140cc4910bd69
 
 # In-memory store for results and status tracking
 availability_results = {}
