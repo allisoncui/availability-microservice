@@ -1,19 +1,29 @@
-<<<<<<< HEAD
 from fastapi import FastAPI, BackgroundTasks, HTTPException, Response, status, Request
-=======
+from fastapi.middleware.cors import CORSMiddleware
 import os
 from dotenv import load_dotenv
->>>>>>> b9b37d5a608936eb6a05114067996647f2d0deef
 import mysql.connector
 import requests
 from datetime import datetime, timedelta
 
-<<<<<<< HEAD
 app = FastAPI()
+
+# Add CORS middleware to allow requests from the frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allow all headers
+)
+
+# Constants for external microservices
+USER_MICROSERVICE_URL = "http://52.23.233.221:8000"
+RESTAURANT_MICROSERVICE_URL = "http://34.207.95.163:8000"
+
 
 # API key
 API_KEY = 'VbWk7s3L4KiK5fzlO7JD3Q5EYolJI7n5'
-=======
 load_dotenv()
 
 API_KEY = os.getenv('API_KEY')
@@ -22,7 +32,6 @@ DB_USER = os.getenv('DB_USER')
 DB_PASSWORD = os.getenv('DB_PASSWORD')
 DB_NAME = os.getenv('DB_NAME')
 DB_PORT = int(os.getenv('DB_PORT', 3306))
->>>>>>> b9b37d5a608936eb6a05114067996647f2d0deef
 
 # In-memory store for results and status tracking
 availability_results = {}
