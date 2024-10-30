@@ -6,8 +6,12 @@ import mysql.connector
 import requests
 from datetime import datetime, timedelta
 import time
+import logging
 
 app = FastAPI()
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Add CORS middleware to allow requests from the frontend
 app.add_middleware(
@@ -142,14 +146,17 @@ def check_availability(cursor, username):
 
 
 # Background task for checking availability for the first available reservation
+# Background task for checking availability for the first available reservation
 def check_availability_task(username, request_id, callback_url=None):
     conn = connect_to_database()
     cursor = conn.cursor()
 
     # Run the availability check and store the first available result
     results = check_availability(cursor, username)
-    
-    # If a valid result is found, store it in the availability_results
+
+    # Log storing availability results
+    logger.info(f"Storing availability for request_id: {request_id}, results: {results}")
+
     if results:
         for restaurant_code, availability_data in results.items():
             # Store the first available reservation with restaurant_code as the key
@@ -158,20 +165,24 @@ def check_availability_task(username, request_id, callback_url=None):
                 "date": availability_data.split(" ")[0],  # Extract date
                 "time": availability_data.split(" ")[1]   # Extract time
             }
-    
+
+            # Log that availability has been stored
+            logger.info(f"Stored first available reservation for {restaurant_code}: {availability_results[restaurant_code]}")
+
     task_status[request_id] = "complete"
 
-    # If a callback URL is provided, post the result to it
+    # Log callback attempt
     if callback_url:
         try:
             response = requests.post(callback_url, json={"status": "complete", "data": results})
             response.raise_for_status()
-            print(f"Callback to {callback_url} successful.")
+            logger.info(f"Callback to {callback_url} successful.")
         except requests.exceptions.RequestException as e:
-            print(f"Failed to send callback: {e}")
+            logger.error(f"Failed to send callback: {e}")
 
     cursor.close()
     conn.close()
+
 # def check_availability_task(username, request_id, callback_url=None):
 #     conn = connect_to_database()
 #     cursor = conn.cursor()
@@ -234,6 +245,8 @@ async def get_availability(restaurant_code: str):
     availability_data = availability_results.get(restaurant_code)
 
     if availability_data:
+        logger.info(f"Returning availability for {restaurant_code}: {availability_data}")
         return availability_data
     else:
+        logger.warning(f"No availability found for restaurant_code: {restaurant_code}")
         raise HTTPException(status_code=404, detail="No availability found for this restaurant")
