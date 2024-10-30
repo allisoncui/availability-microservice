@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 import mysql.connector
 import requests
 from datetime import datetime, timedelta
+import time
 
 app = FastAPI()
 
@@ -136,6 +137,7 @@ def check_availability(cursor, username):
                                     print(
                                         f"First available reservation for {restaurant_name} on {day['date']} at {start_time}")
                                     return {restaurant_name: start_time}  # Return the first available reservation
+                                time.sleep(10)
     return {"error": "No available reservations found"}  # If no reservation is found
 
 
