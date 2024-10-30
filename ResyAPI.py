@@ -1,4 +1,3 @@
-import os
 import mysql.connector
 import requests
 import time
@@ -6,21 +5,16 @@ from datetime import datetime
 import tkinter as tk
 from tkinter import messagebox
 
-API_KEY = os.getenv('API_KEY')
-DB_HOST = os.getenv('DB_HOST')
-DB_USER = os.getenv('DB_USER')
-DB_PASSWORD = os.getenv('DB_PASSWORD')
-DB_NAME = os.getenv('DB_NAME')
-DB_PORT = int(os.getenv('DB_PORT', 3306))
+# API key
+API_KEY = 'VbWk7s3L4KiK5fzlO7JD3Q5EYolJI7n5'
 
 # Database connection
 def connect_to_database():
     return mysql.connector.connect(
-        host=DB_HOST,
-        user=DB_USER,
-        password=DB_PASSWORD,
-        database=DB_NAME,
-        # port=DB_PORT
+        host="availability-database.cb821k94flru.us-east-1.rds.amazonaws.com",
+        user="root",
+        password="dbuserdbuser",
+        database="availability"
     )
 
 # Fetch user_id from username
@@ -128,11 +122,12 @@ class AvailabilityApp(tk.Tk):
         # Clear previous results
         self.result_listbox.delete(0, tk.END)
 
-        # Search for availability for each viewed restaurant and party sizes 2 to 4
+        # Search for availability for each viewed restaurant
         start_date = datetime.now().strftime('%Y-%m-%d')
         end_date = (datetime.now().replace(month=datetime.now().month + 1)).strftime('%Y-%m-%d')
 
         for restaurant_code, restaurant_name in viewed_restaurants:
+            found_availability = False
             self.result_listbox.insert(tk.END, f"\nChecking availability for {restaurant_name}...")
 
             for party_size in range(2, 5):
@@ -148,31 +143,27 @@ class AvailabilityApp(tk.Tk):
                         continue
 
                     for day in available_days:
-                        self.result_listbox.insert(tk.END, f"Date: {day}, Party Size: {party_size}")
                         find_data = fetch_available_times(restaurant_code, party_size, day)
                         if find_data:
                             venues = find_data.get('results', {}).get('venues', [])
-                            if not venues:
-                                continue
-
-                            slots = venues[0].get('slots', [])
-                            if not slots:
-                                self.result_listbox.insert(tk.END, "No available time slots.")
-                                continue
-
-                            self.result_listbox.insert(tk.END, "Available Reservation Times:")
-                            for slot in slots:
-                                start_time = slot.get('date', {}).get('start')
-                                if start_time:
-                                    reservation_time = datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S')
-                                    formatted_time = reservation_time.strftime('%I:%M %p')
-                                    self.result_listbox.insert(tk.END, f"  - {formatted_time}")
-                                time.sleep(3)
-                        else:
-                            self.result_listbox.insert(tk.END, f"Failed to retrieve available times for {day}.")
-                else:
-                    self.result_listbox.insert(tk.END, f"Failed to retrieve available days for party size {party_size}.")
-                time.sleep(5)
+                            if venues:
+                                slots = venues[0].get('slots', [])
+                                if slots:
+                                    # Display the first available reservation and break out of the loop
+                                    start_time = slots[0].get('date', {}).get('start')
+                                    if start_time:
+                                        reservation_time = datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S')
+                                        formatted_time = reservation_time.strftime('%I:%M %p')
+                                        self.result_listbox.insert(tk.END, f"First available reservation for {restaurant_name}: Date: {day}, Time: {formatted_time}, Party Size: {party_size}")
+                                        found_availability = True
+                                        break  # Exit loop after first available reservation
+                        if found_availability:
+                            break  # Exit if a reservation has been found for this restaurant and party size
+                if found_availability:
+                    break
+            if not found_availability:
+                self.result_listbox.insert(tk.END, f"No available reservations found for {restaurant_name}")
+            time.sleep(5)
 
 # Main function to set up the database and launch the app
 def main():

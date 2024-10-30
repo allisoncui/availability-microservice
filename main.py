@@ -26,7 +26,6 @@ RESTAURANT_MICROSERVICE_URL = "http://34.207.95.163:8000"
 API_KEY = 'VbWk7s3L4KiK5fzlO7JD3Q5EYolJI7n5'
 load_dotenv()
 
-API_KEY = os.getenv('API_KEY')
 DB_HOST = os.getenv('DB_HOST')
 DB_USER = os.getenv('DB_USER')
 DB_PASSWORD = os.getenv('DB_PASSWORD')
@@ -81,8 +80,9 @@ def make_get_request(url, params):
         print(f"Error making GET request to {url}: {e}")
         return None
 
-# First request to get available days for a restaurant (venue)
-def fetch_available_days(venue_id, num_seats):
+
+# Adjust `fetch_available_days` to look for availability for 2 people
+def fetch_available_days(venue_id, num_seats=2):
     today = datetime.now().strftime('%Y-%m-%d')
     end_date = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
 
@@ -95,8 +95,9 @@ def fetch_available_days(venue_id, num_seats):
     }
     return make_get_request(url, params)
 
-# Second request to fetch available times for each available day
-def fetch_available_times(venue_id, num_seats, day):
+
+# Adjust `fetch_available_times` to search for availability for 2 people
+def fetch_available_times(venue_id, num_seats=2, day=None):
     url = 'https://api.resy.com/4/find'
     params = {
         'lat': 0,
@@ -107,7 +108,8 @@ def fetch_available_times(venue_id, num_seats, day):
     }
     return make_get_request(url, params)
 
-# Function to check restaurant availability for a user
+
+# Update `check_availability` to stop as soon as the first available reservation is found
 def check_availability(cursor, username):
     user_id = get_user_id(cursor, username)
     if not user_id:
@@ -119,37 +121,30 @@ def check_availability(cursor, username):
         print(f"No viewed restaurants found for user {username}")
         return {"error": "No viewed restaurants found"}
 
-    results = {}
-    # For each viewed restaurant, check availability using the API
     for restaurant_code, restaurant_name in viewed_restaurants:
         available_days_data = fetch_available_days(restaurant_code, 2)
         if available_days_data and 'scheduled' in available_days_data:
-            available_days = [
-                day['date'] for day in available_days_data['scheduled']
-                if day['inventory']['reservation'] == 'available'
-            ]
-            daily_availability = []
-            for day in available_days:
-                available_slots = fetch_available_times(restaurant_code, 2, day)
-                if available_slots and 'results' in available_slots:
-                    venues = available_slots['results'].get('venues', [])
-                    for venue in venues:
-                        slots = venue.get('slots', [])
-                        daily_availability.extend(
-                            slot.get('date', {}).get('start') for slot in slots if slot.get('date', {}).get('start')
-                        )
-            results[restaurant_name] = daily_availability if daily_availability else "No availability"
-        else:
-            results[restaurant_name] = "No available days"
+            for day in available_days_data['scheduled']:
+                if day['inventory']['reservation'] == 'available':
+                    available_slots = fetch_available_times(restaurant_code, 2, day['date'])
+                    if available_slots and 'results' in available_slots:
+                        venues = available_slots['results'].get('venues', [])
+                        for venue in venues:
+                            for slot in venue.get('slots', []):
+                                start_time = slot.get('date', {}).get('start')
+                                if start_time:
+                                    print(
+                                        f"First available reservation for {restaurant_name} on {day['date']} at {start_time}")
+                                    return {restaurant_name: start_time}  # Return the first available reservation
+    return {"error": "No available reservations found"}  # If no reservation is found
 
-    return results
 
-# Background task for checking availability
+# Background task for checking availability for the first available reservation
 def check_availability_task(username, request_id, callback_url=None):
     conn = connect_to_database()
     cursor = conn.cursor()
-    
-    # Run the availability check and store results
+
+    # Run the availability check and store the first available result
     results = check_availability(cursor, username)
     availability_results[request_id] = results
     task_status[request_id] = "complete"
