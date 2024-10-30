@@ -125,9 +125,15 @@ def check_availability_task(restaurant_code, request_id, callback_url=None):
 # Endpoint to initiate availability check with optional callback
 @app.post("/availability/{restaurant_code}", status_code=status.HTTP_202_ACCEPTED)
 async def initiate_availability_check(restaurant_code: str, request: Request, background_tasks: BackgroundTasks):
-    payload = await request.json()
+    # Check if JSON is present in the request body
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}  # Set default to an empty dict if no JSON is provided
+
     callback_url = payload.get("callback_url")
 
+    # Generate a unique request ID
     request_id = f"{restaurant_code}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
     background_tasks.add_task(check_availability_task, restaurant_code, request_id, callback_url)
     task_status[request_id] = "processing"
