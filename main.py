@@ -194,3 +194,17 @@ async def check_status(request_id: str):
             return {"status": "processing", "data": None}
     else:
         raise HTTPException(status_code=404, detail="Request ID not found")
+    
+@app.get("/availability/{restaurant_code}")
+async def get_availability(restaurant_code: str):
+    """
+    Endpoint to get the first available reservation for a given restaurant by its code.
+    """
+    # Simulating the retrieval of data based on the restaurant code
+    # You can modify this to retrieve from your database or API logic
+    availability_data = availability_results.get(restaurant_code)
+    
+    if availability_data:
+        return availability_data
+    else:
+        raise HTTPException(status_code=404, detail="No availability found for this restaurant")
