@@ -148,7 +148,17 @@ def check_availability_task(username, request_id, callback_url=None):
 
     # Run the availability check and store the first available result
     results = check_availability(cursor, username)
-    availability_results[request_id] = results
+    
+    # If a valid result is found, store it in the availability_results
+    if results:
+        for restaurant_code, availability_data in results.items():
+            # Store the first available reservation with restaurant_code as the key
+            availability_results[restaurant_code] = {
+                "restaurant": restaurant_code,
+                "date": availability_data.split(" ")[0],  # Extract date
+                "time": availability_data.split(" ")[1]   # Extract time
+            }
+    
     task_status[request_id] = "complete"
 
     # If a callback URL is provided, post the result to it
@@ -162,6 +172,26 @@ def check_availability_task(username, request_id, callback_url=None):
 
     cursor.close()
     conn.close()
+# def check_availability_task(username, request_id, callback_url=None):
+#     conn = connect_to_database()
+#     cursor = conn.cursor()
+
+#     # Run the availability check and store the first available result
+#     results = check_availability(cursor, username)
+#     availability_results[request_id] = results
+#     task_status[request_id] = "complete"
+
+#     # If a callback URL is provided, post the result to it
+#     if callback_url:
+#         try:
+#             response = requests.post(callback_url, json={"status": "complete", "data": results})
+#             response.raise_for_status()
+#             print(f"Callback to {callback_url} successful.")
+#         except requests.exceptions.RequestException as e:
+#             print(f"Failed to send callback: {e}")
+
+#     cursor.close()
+#     conn.close()
 
 # Endpoint to initiate availability check with optional callback
 @app.post("/availability/{username}", status_code=status.HTTP_202_ACCEPTED)
@@ -200,10 +230,9 @@ async def get_availability(restaurant_code: str):
     """
     Endpoint to get the first available reservation for a given restaurant by its code.
     """
-    # Simulating the retrieval of data based on the restaurant code
-    # You can modify this to retrieve from your database or API logic
+    # Check if the reservation for the restaurant code exists in availability_results
     availability_data = availability_results.get(restaurant_code)
-    
+
     if availability_data:
         return availability_data
     else:
