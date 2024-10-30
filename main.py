@@ -212,8 +212,14 @@ async def initiate_availability_check(username: str, request: Request, backgroun
 
     # Generate a unique request ID
     request_id = f"{username}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
-    
-    # Start the background task
+
+    # Check if availability for this restaurant already exists
+    for restaurant_code, availability_data in availability_results.items():
+        if username.lower() in restaurant_code.lower():  # Check for matching restaurant in availability results
+            logger.info(f"Availability already exists for {restaurant_code}, returning immediately.")
+            return availability_data
+
+    # If no availability is found, start the background task
     background_tasks.add_task(check_availability_task, username, request_id, callback_url)
     task_status[request_id] = "processing"
 
@@ -223,6 +229,25 @@ async def initiate_availability_check(username: str, request: Request, backgroun
         headers={"Location": f"/availability/status/{request_id}"},
         status_code=status.HTTP_202_ACCEPTED
     )
+
+# @app.post("/availability/{username}", status_code=status.HTTP_202_ACCEPTED)
+# async def initiate_availability_check(username: str, request: Request, background_tasks: BackgroundTasks):
+#     payload = await request.json()
+#     callback_url = payload.get("callback_url")
+
+#     # Generate a unique request ID
+#     request_id = f"{username}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    
+#     # Start the background task
+#     background_tasks.add_task(check_availability_task, username, request_id, callback_url)
+#     task_status[request_id] = "processing"
+
+#     # Return 202 Accepted with a link to check the status
+#     return Response(
+#         content=f"Request accepted. Check status at /availability/status/{request_id}",
+#         headers={"Location": f"/availability/status/{request_id}"},
+#         status_code=status.HTTP_202_ACCEPTED
+#     )
 
 # Endpoint to check status (polling)
 @app.get("/availability/status/{request_id}")
