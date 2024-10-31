@@ -26,7 +26,7 @@ app.add_middleware(
 load_dotenv()
 
 # API key
-API_KEY = os.getenv('API_KEY')
+API_KEY = 'VbWk7s3L4KiK5fzlO7JD3Q5EYolJI7n5'
 
 # In-memory store for results and status tracking
 availability_results = {}
