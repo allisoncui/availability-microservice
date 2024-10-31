@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 # Add CORS middleware to allow requests from the frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Update to your frontend's URL
+    allow_origins=["*"],  # Update to your frontend's URL
     allow_credentials=True,
     allow_methods=["POST", "GET"],  # Specify methods used in availability
     allow_headers=["*"],
