@@ -23,13 +23,10 @@ app.add_middleware(
     expose_headers=["Location"],  # Needed if your response headers include "Location"
 )
 
-# Constants for external microservices
-USER_MICROSERVICE_URL = "http://52.23.233.221:8000"
-RESTAURANT_MICROSERVICE_URL = "http://34.207.95.163:8000"
+load_dotenv()
 
 # API key
-API_KEY = 'VbWk7s3L4KiK5fzlO7JD3Q5EYolJI7n5'
-load_dotenv()
+API_KEY = os.getenv('API_KEY')
 
 # In-memory store for results and status tracking
 availability_results = {}
