@@ -28,7 +28,7 @@ load_dotenv()
 app.middleware("http")(log_request_response)
 
 # API key
-API_KEY = 'VbWk7s3L4KiK5fzlO7JD3Q5EYolJI7n5'
+API_KEY = os.getenv("API_KEY", "VbWk7s3L4KiK5fzlO7JD3Q5EYolJI7n5")
 
 # In-memory store for results and status tracking
 availability_results = {}
@@ -37,10 +37,10 @@ task_status = {}
 # Connect to the MySQL database
 def connect_to_database():
     return mysql.connector.connect(
-        host='availability-database.cb821k94flru.us-east-1.rds.amazonaws.com',
-        user='root',
-        password='dbuserdbuser',
-        database='availability',
+        host=os.getenv("DB_HOST"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        database=os.getenv("DB_NAME"),
     )
 
 # Function to make API requests
@@ -61,6 +61,13 @@ def make_get_request(url, params):
     except Exception as e:
         logger.error(f"Error making GET request to {url}: {e}")
         return None
+
+# Generate HATEOAS links
+def generate_hateoas_links(base_url, endpoint_name, **params):
+    return {
+        "self": f"{base_url}{endpoint_name}?{'&'.join([f'{k}={v}' for k, v in params.items()])}",
+        "status": f"{base_url}availability/status/{params.get('request_id')}" if params.get('request_id') else None
+    }
 
 # Fetch available days
 def fetch_available_days(venue_id, num_seats=2):
@@ -107,11 +114,14 @@ def check_availability(restaurant_code):
     return {"error": "No available reservations found"}
 
 # Background task for availability check
-def check_availability_task(restaurant_code, request_id, callback_url=None):
+def check_availability_task(restaurant_code, request_id, base_url, callback_url=None):
     results = check_availability(restaurant_code)
     availability_results[request_id] = results
     task_status[request_id] = "complete"
     logger.info(f"Stored availability for request_id: {request_id}")
+
+    # Add HATEOAS links
+    results["_links"] = generate_hateoas_links(base_url, f"/availability/{restaurant_code}", request_id=request_id)
 
     if callback_url:
         try:
@@ -134,26 +144,28 @@ async def initiate_availability_check(restaurant_code: str, request: Request, ba
 
     # Generate a unique request ID
     request_id = f"{restaurant_code}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
-    background_tasks.add_task(check_availability_task, restaurant_code, request_id, callback_url)
+    background_tasks.add_task(check_availability_task, restaurant_code, request_id, str(request.base_url), callback_url)
     task_status[request_id] = "processing"
 
-    return Response(
-        content=f"Request accepted. Check status at /availability/status/{request_id}",
-        headers={"Location": f"/availability/status/{request_id}"},
-        status_code=status.HTTP_202_ACCEPTED
-    )
+    links = generate_hateoas_links(str(request.base_url), "/availability", request_id=request_id)
+
+    return {
+        "message": "Request accepted. Check status with the link provided.",
+        "_links": links
+    }
 
 # Endpoint to check status
 @app.get("/availability/status/{request_id}")
-async def check_status(request_id: str):
+async def check_status(request_id: str, request: Request):
     if request_id in task_status:
         current_status = task_status[request_id]
+        links = generate_hateoas_links(str(request.base_url), "/availability/status", request_id=request_id)
         if current_status == "complete":
             logger.info(f"Returning complete data for request_id {request_id}")
-            return {"status": "complete", "data": availability_results[request_id]}
+            return {"status": "complete", "data": availability_results[request_id], "_links": links}
         else:
             logger.info(f"Still processing request_id {request_id}")
-            return {"status": "processing", "data": None}
+            return {"status": "processing", "data": None, "_links": links}
     else:
         logger.warning(f"Request ID {request_id} not found")
         raise HTTPException(status_code=404, detail="Request ID not found")
