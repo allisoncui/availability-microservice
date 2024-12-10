@@ -7,6 +7,7 @@ import requests
 from datetime import datetime, timedelta
 import time
 import logging
+from middleware.middleware import log_request_response
 
 app = FastAPI()
 
@@ -24,6 +25,7 @@ app.add_middleware(
 )
 
 load_dotenv()
+app.middleware("http")(log_request_response)
 
 # API key
 API_KEY = 'VbWk7s3L4KiK5fzlO7JD3Q5EYolJI7n5'
