@@ -7,7 +7,7 @@ import requests
 from datetime import datetime, timedelta
 import time
 import logging
-from middleware.middleware.middleware import log_request_response
+from middleware.middleware import log_request_response
 
 app = FastAPI()
 
