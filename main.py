@@ -65,7 +65,7 @@ def make_get_request(url, params):
 # Generate HATEOAS links
 def generate_hateoas_links(base_url, endpoint_name, **params):
     return {
-        "self": f"{base_url}{endpoint_name}?{'&'.join([f'{k}={v}' for k, v in params.items()])}",
+        "self": f"{base_url.rstrip('/')}{endpoint_name}?{'&'.join([f'{k}={v}' for k, v in params.items()])}",
         "status": f"{base_url}availability/status/{params.get('request_id')}" if params.get('request_id') else None
     }
 
